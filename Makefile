@@ -1,20 +1,24 @@
 .PHONY: all clean
-# http://blog.csdn.net/brooknew/article/details/8452358
 INC=-I. -I./include/
-CFLAGS+=$(INC) -g -O0 -Wall -lpthread
+CFLAGS+=$(INC) -g -O3 -Wall -L./lib -lhlog -lpthread
+ARFLAGS=rcus
 
-
-CONF_TEST_SOURCE=src/hconf.c src/hpool.c test/test_conf.c
-CONF_TEST_TARGET=./bin/test_conf
-
-LOCK_TEST_SOURCE=test/test_lock.c
-LOCK_TEST_TARGET=./bin/test_lock
 
 LIB_SOURCE=$(wildcard src/*.c)
 LIB_TARGET=./lib/libhlog.a
 OBJS=$(patsubst %.c,%.o,$(LIB_SOURCE))
 
-TEST=CONF_TEST LOCK_TEST
+
+TEST_CONF_SOURCE=test/test_conf.c
+TEST_CONF_TARGET=./bin/test_conf
+
+TEST_LOCK_SOURCE=test/test_lock.c
+TEST_LOCK_TARGET=./bin/test_lock
+
+TEST_LOG_SOURCE=test/test_log.c
+TEST_LOG_TARGET=./bin/test_log
+
+TEST=TEST_CONF TEST_LOCK TEST_LOG
 
 
 all:$(LIB_TARGET) $(foreach prog,$(TEST),$($(prog)_TARGET))
@@ -23,10 +27,11 @@ $(LIB_TARGET):$(OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
 define calc_depends
-$($(1)_TARGET):$(patsubst %.c,%.o,$($(1)_SOURCE))
-	$$(CC) $$(CFLAGS) $$(CPPFLAGS) $$^ -o $$@
+$($(1)_TARGET):$(patsubst %.c,%.o,$($(1)_SOURCE)) $(LIB_TARGET)
+	$$(CC) $$^ $$(CFLAGS) $$(CPPFLAGS) -o $$@
 
 OBJS+=$(patsubst %.c,%.o,$($(1)_SOURCE))
+TEST_TARGET+=$($(1)_TARGET)
 endef
 
 $(foreach prog,$(TEST),$(eval $(call calc_depends,$(prog))))
@@ -44,15 +49,10 @@ endif
 -include $(DEPS)
 
 echo:
-	@echo $(LIB_SOURCE)
-	@echo $(OBJS)
-	@echo $(DEPS)
-	@echo $(TEST_TARGET)
-	@echo $(LIB_TARGET)
+
 
 clean:
 	$(RM) $(OBJS)
 	$(RM) $(DEPS)
 	$(RM) $(TEST_TARGET)
 	$(RM) $(LIB_TARGET)
-	@echo $(LIB_SOURCE)

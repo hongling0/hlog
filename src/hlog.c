@@ -81,6 +81,10 @@ addkey:
 	new_count=vec->key_count?vec->key_count*2:8;
 	new_vec=(struct hlogkey_t *)malloc(sizeof(*new_vec)*new_count);
 	memset(new_vec,0,sizeof(*new_vec)*new_count);
+	for(i=0;i<new_count;i++){
+		curkey=&new_vec[i];
+		curkey->logid=-1;
+	}
 	for(i=0,j=0;i<vec->key_count;i++,j++){
 		oldkey=&vec->key_vec[i];
 		curkey=&new_vec[j];
@@ -187,9 +191,8 @@ void hlog_release(){
 	}
 }
 
-int hlog_keydeclare(const char* name,hlog_format format){
+static int hlog_keydeclare_impl(struct hlogvec_t *v,const char* name,hlog_format format){
 	int logid;
-	struct hlogvec_t *v=V;
 
 	if(strlen(name)>=MAX_HLOG_KEY_LEN){
 		fprintf(stderr, "hlog_keydeclare %s failure KEY too long than %d\n",name,(int)MAX_HLOG_KEY_LEN);
@@ -198,20 +201,28 @@ int hlog_keydeclare(const char* name,hlog_format format){
 	if(!format){
 		format=hlog_default_formater;
 	}
-	rwlock_wlock(&v->lock);
 	logid=hlogvec_add_key(v,name,format);
+	return logid;
+}
+
+int hlog_keydeclare(const char* name,hlog_format format){
+	int logid;
+	struct hlogvec_t *v=V;
+	rwlock_wlock(&v->lock);
+	logid=hlog_keydeclare_impl(v,name,format);
 	rwlock_wunlock(&v->lock);
 	return logid;
 }
 
 static inline struct hlogkey_t* hlog_keygrub(struct hlogvec_t *v,int id){
 	struct hlogkey_t *key=&v->key_vec[id];
-	if(key->logid>0){
-		return key;
-	}else{
-		fprintf(stderr, "hlog_keygrub %d failure not register log key\n",(int)id);
-		return NULL;
+	if(id<v->key_count){
+		if(key->logid>0||id==0){
+			return key;
+		}
 	}
+	fprintf(stderr, "hlog_keygrub %d failure not register log key\n",(int)id);
+	return NULL;
 }
 
 size_t hlog_interface(int logid,int level,int flag,const char* file,int line,const char* fmt,...){
@@ -225,6 +236,7 @@ size_t hlog_interface(int logid,int level,int flag,const char* file,int line,con
 		return 0;
 	}
 	ptr=NULL;
+	len=0;
 	maxlen=sizeof(cache);
 	buf=cache;
 	vec=V;
@@ -320,8 +332,8 @@ static struct hlogger_t * hlog_logger_initilize(struct hlog_opt *opt,const char 
 	return logger;
 }
 
-static struct hlogger_node_t * hlog_hlogger_t_refkey(struct hlogvec_t *vec,const char* name){
-	int logid=hlog_keydeclare(name,NULL);
+static struct hlogger_node_t * hlog_hlogger_t_refkey(struct hlogvec_t *vec,const char* name,int level){
+	int logid=hlog_keydeclare_impl(vec,name,NULL);
 	if(logid<0){
 		return NULL;
 	}else{
@@ -332,6 +344,10 @@ static struct hlogger_node_t * hlog_hlogger_t_refkey(struct hlogvec_t *vec,const
 			node->next->prev=node;
 		}
 		node->prev=NULL;
+		key->node=node;
+		if(key->level<level){
+			key->level=level;
+		}
 		return node;
 	}
 }
@@ -362,35 +378,36 @@ static int hlogconf_check(struct hconf_node *node){
 }
 
 static const char** parse_keys(struct hm_pool *po,const char* keystr){
-	char *ptr,str[strlen(keystr+1)];
+	char *ptr,str[strlen(keystr)+1];
 	const char **keys,*key_start;
-	int count;
+	int count,i;
 
 	strcpy(str,keystr);
-	ptr=str;
 	key_start=NULL;
 	count=0;
+	ptr=str;
 	while(*ptr){
 		if(isgraph(*ptr)){
 			if(!key_start){
 				key_start=ptr;
+				count++;
 			}
 		}else{
 			if(key_start){
-				ptr='\0';
-				count++;
+				*ptr='\0';
 				key_start=NULL;
 			}
 		}
 		ptr++;
 	}
-	keys=(const char**)hm_pool_malloc(po,count+1);
-	count=0;
+	keys=(const char**)hm_pool_malloc(po,sizeof(*keys)*(count+1));
 	ptr=str;
-	while(*ptr){
+	key_start=NULL;
+	for(i=0;i<count;){
 		if(isgraph(*ptr)){
 			if(!key_start){
-				keys[count++]=ptr;
+				keys[i++]=hm_pool_strdup(po,str);
+				key_start=ptr;
 			}
 		}else{
 			if(key_start){
@@ -399,36 +416,42 @@ static const char** parse_keys(struct hm_pool *po,const char* keystr){
 		}
 		ptr++;
 	}
-	keys[count]=NULL;
+	keys[i]=NULL;
 	return keys;
 }
 
 
-static void hlog_hlogger_t_start(struct hlog_opt *opt,const char *name,int level,const char* keys[],struct hconf_node *node){
+static int hlog_hlogger_start(struct hlog_opt *opt,const char *name,int level,const char** keys,struct hconf_node *conf){
 	struct hlogger_t *logger;
 	struct hlogvec_t *v;
-	const char* cur;
+	const char **cur;
+	int r=0;
 	v=V;
+
 	rwlock_wlock(&v->lock);
 	hlog_logger_remove(v,name);
-	logger=hlog_logger_initilize(opt,name,level,node);
-	for(cur=keys[0];cur;cur++){
-		struct hlogger_node_t *node=hlog_hlogger_t_refkey(v,cur);
-		if(node){
-			node->samenext=logger->allnode;
-			logger->allnode=node;
-			node->logger=logger;
+	logger=hlog_logger_initilize(opt,name,level,conf);
+	if(logger==0){
+		r=-1;
+	}else{
+		for(cur=keys;*cur;cur++){
+			struct hlogger_node_t *node=hlog_hlogger_t_refkey(v,*cur,level);
+			if(node==NULL){
+				r=-1;
+				break;
+			}else{
+				node->samenext=logger->allnode;
+				logger->allnode=node;
+				node->logger=logger;
+			}
 		}
 	}
 	rwlock_wunlock(&v->lock);
+	return r;
 }
 
-
 int hlogconf_loadconf(struct hconf *conf){
-	const char *name,*type,*keys,**keyvec;
 	struct hconf_node *node;
-	struct hlog_opt *opt;
-	int level;
 
 	for(node=conf->block_list;node;node=node->next){
 		if(hlogconf_check(node)!=0){
@@ -436,13 +459,15 @@ int hlogconf_loadconf(struct hconf *conf){
 		}
 	}
 	for(node=conf->block_list;node;node=node->next){
-		name=node->key;
-		opt=get_logopt(type);
-		type=hconf_get_string(node,"type",NULL);
-		level=hconf_get_long(node,"level",0);
-		keys=hconf_get_string(node,"type",keys);
-		keyvec=parse_keys(conf->po,keys);
-		hlog_hlogger_t_start(opt,name,level,keyvec,node);
+		const char *name=node->key;
+		const char* type=hconf_get_string(node,"type",NULL);
+		struct hlog_opt *opt=get_logopt(type);
+		int level=hconf_get_long(node,"level",0);
+		const char* keys=hconf_get_string(node,"keys",NULL);
+		const char** keyvec=parse_keys(conf->po,keys);
+		if(hlog_hlogger_start(opt,name,level,keyvec,node)!=0){
+			return -1;
+		}
 	}
 	return 0;
 }

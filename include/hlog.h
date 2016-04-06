@@ -2,6 +2,7 @@
 #define _H_LOG_H
 
 #include <time.h>
+#include "hconf.h"
 
 #define MAX_HLOG_KEY_LEN 24
 

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "hpool.h"
 
 #define max(a,b) ( ((a)>(b)) ? (a):(b) )
@@ -18,7 +19,7 @@ struct hm_pool *hm_pool_create(size_t default_blk_size){
 	struct hm_pool *po=(struct hm_pool *)malloc(sizeof(*po));
 	po->head=po->cur=NULL;
 	if(default_blk_size==0){
-		default_blk_size=4096-sizeof(*po->head);
+		default_blk_size=128-sizeof(*po->head);
 	}
 	po->default_blk_size=default_blk_size;
 	po->used_mem=0;
@@ -34,6 +35,7 @@ void hm_pool_destory(struct hm_pool *po){
 		free(blk);
 		blk=next;
 	}
+	free(po);
 }
 
 #define align_ptr(p,a) (((uintptr_t)(p)+((uintptr_t)(a)-1))&~((uintptr_t)(a)-1))
@@ -69,5 +71,18 @@ reblock:
 		goto reblock;
 	}
 	po->used_mem+=sz;
+	return ret;
+}
+
+char *hm_pool_strdup(struct hm_pool *po,const char* str){
+	char *ret=(char*)hm_pool_malloc(po,strlen(str)+1);
+	strcpy(ret,str);
+	return ret;
+}
+
+char *hm_pool_strlendup(struct hm_pool *po,const char* str,size_t len){
+	char *ret=(char*)hm_pool_malloc(po,len+1);
+	memcpy(ret,str,len);
+	ret[len]='\0';
 	return ret;
 }

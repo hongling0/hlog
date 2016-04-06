@@ -91,6 +91,8 @@ static FILE* hfilelog_sizerotate_rotate(struct hfilelog_sizerotate_t *ro,struct 
 					hfilelog_sizerotate_open(ro);
 				}
 			}
+		}else{
+			hfilelog_sizerotate_open(ro);
 		}
 	}
 	return ro->file;

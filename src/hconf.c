@@ -180,6 +180,7 @@ static struct hconf_node *parse_block(struct parse_ctx *ctx){
 		}
 		new_node=(struct hconf_node*)hm_pool_malloc(ctx->po,sizeof(*new_node));
 		new_node->key=key;
+		new_node->next=NULL;
 
 		value=try_parse_value(ctx);
 		if(value){
@@ -260,7 +261,7 @@ loop:
 				cur=cur->next;
 			}
 	}else{
-		while(cur){
+		while(cur!=NULL){
 			if(memcmp(cur->key,buf,strlen(cur->key))==0){
 				return cur;
 			}else{
