@@ -1,10 +1,10 @@
-.PHONY: all clean
+.PHONY: all clean cleanlog
 INC=-I. -I./include/
 CFLAGS+=$(INC) -g -O3 -Wall -L./lib -lhlog -lpthread
 ARFLAGS=rcus
 
 
-LIB_SOURCE=$(wildcard src/*.c)
+LIB_SOURCE=$(wildcard src/*.c) $(wildcard plugin/*.c)
 LIB_TARGET=./lib/libhlog.a
 OBJS=$(patsubst %.c,%.o,$(LIB_SOURCE))
 
@@ -50,6 +50,8 @@ endif
 
 echo:
 
+cleanlog:
+	$(RM) tmp/*log*	
 
 clean:
 	$(RM) $(OBJS)

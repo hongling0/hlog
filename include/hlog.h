@@ -14,7 +14,6 @@
 #define HLOG_MAXLVL HLOG_DEBUG
 
 // flag
-#define HLOG_FLAG_TMOK 		(1U<<0)
 #define HLOG_FLAG_NOHEAD 	(1U<<1)
 #define HLOG_FLAG_NOTIME 	(1U<<2)
 
@@ -22,19 +21,12 @@ struct hlogev_t{
 	unsigned char level;
 	int logid;
 	int flag;
-	struct tm tm;
 	int line;
+	time_t time;
 	const char* file;
 };
 
-static inline struct tm* hlog_getsystm(struct hlogev_t *ev){
-	if(!(ev->flag&HLOG_FLAG_TMOK)){
-		time_t now=time(NULL);
-		localtime_r(&now,&ev->tm);
-		ev->flag|=HLOG_FLAG_TMOK;
-	}
-	return &ev->tm;
-}
+struct tm* hlog_getsystm(struct hlogev_t *ev);
 
 typedef int (*hlog_format)(char *buf,size_t maxlen,const char* key,struct hlogev_t *ev,const char* fmt,...);
 

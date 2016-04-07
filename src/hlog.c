@@ -9,7 +9,7 @@
 #include <stdarg.h>
 #include "hlog.h"
 #include "hlock.h"
-#include "hlogbuild.i"
+#include "plugin/hlogbuild.i"
 #include "hconf.h"
 
 struct hlogkey_t{
@@ -42,6 +42,16 @@ struct hlogvec_t{
 	struct hlogger_t **logger_vec;
 	unsigned int logger_count;
 };
+
+static __thread time_t tm_lasttime=0;
+static __thread struct tm tm_last;
+struct tm* hlog_getsystm(struct hlogev_t *ev){
+	if(ev->time!=tm_lasttime){
+		tm_lasttime=ev->time;
+		localtime_r(&tm_lasttime,&tm_last);
+	}
+	return &tm_last;
+}
 
 static inline struct hlogkey_t * hlogvec_get_key(struct hlogvec_t* vec,const char* name,int remove){
 	unsigned i=0;
@@ -145,15 +155,20 @@ static struct hlogvec_t* V;
 
 static const char* LOG_LEVEL_NAME[]={"FATA","ERROR","WARN","INFO","DEBUG"};
 
+static __thread char timestr[64];
+static __thread time_t timestr_lasttime=0;
+static __thread size_t timestr_len=0;
 static int hlog_default_formater(char *buf,size_t maxlen,const char* key,struct hlogev_t *ev,const char* fmt,...){
 	va_list ap;
 	int headlen=0;
 
-	if(!(ev->flag&HLOG_FLAG_NOTIME)){
+	if(timestr_lasttime!=ev->time){
 		struct tm *tm=hlog_getsystm(ev);
-		headlen=strftime(buf,maxlen,"%c ",tm);
-		assert(headlen<maxlen);
+		timestr_len=strftime(timestr,sizeof(timestr),"%c ",tm);
+		timestr_lasttime=ev->time;
 	}
+	memcpy(buf,timestr,timestr_len);
+	headlen=timestr_len;
 	if(!(ev->flag&HLOG_FLAG_NOHEAD)){
 		headlen+=snprintf(buf+headlen,maxlen-headlen,"[%s][%s] ",key,LOG_LEVEL_NAME[ev->level]);
 		assert(headlen<maxlen);
@@ -247,7 +262,7 @@ logstart:
 		struct hlogger_node_t *l;
 		struct hlogev_t ev={
 			.logid=logid,.level=level,
-			.flag=flag&(~HLOG_FLAG_TMOK),
+			.flag=flag,.time=time(NULL),
 			.file=file,.line=line
 		};
 		if(!ptr){

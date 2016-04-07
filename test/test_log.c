@@ -4,18 +4,17 @@
 
 const char * conf_string=""
 "gmfilelog:{\n"
-"	type:sizerotatefile\n"
+"	type:timerotatefile\n"
 "	level:4\n"
 "	keys:MAIN INIT\n"
-"	size:1024\n"
-"	file:gm.log\n"
+"	file:tmp/gm%Y%m%d_%H%M%S.log\n"
 "}\n"
 "initfilelog:{\n"
 "	type:sizerotatefile\n"
 "	level:4\n"
 "	keys:INIT\n"
-"	size:10240\n"
-"	file:main.log\n"
+"	size:10485760\n"
+"	file:tmp/main.log\n"
 "}\n";
 
 /*
@@ -41,7 +40,7 @@ int main(int argc,char* argv[]){
 		return -1;
 	}
 	hconf_destory(&conf);
-	for(count=0;count<99999;count++){
+	for(count=0;count<1000000;count++){
 		hlog_interface(LOG_INIT,HLOG_INFO,0,__FILE__,__LINE__,"log_init_ok_%p\n",&conf);
 		hlog_interface(LOG_MAIN,HLOG_INFO,0,__FILE__,__LINE__,"log_main_ok_%p\n",&conf);
 	}
