@@ -1,38 +1,49 @@
+#include <pthread.h>
 
+#ifdef __cpluscplus
+extern "C"{
+#endif
 
 struct h_rwlock{
-	int read,write;
+	pthread_rwlock_t lock;
 };
 
 static inline void rwlock_init(struct h_rwlock * l){
-	l->write=l->read=0;
+	pthread_rwlock_init(&l->lock, NULL);
 }
 
 static inline void rwlock_rlock(struct h_rwlock * l){
-	for(;;){
-		while(l->write){
-			__sync_synchronize();
-		}
-		__sync_add_and_fetch(&l->read,1);
-		if(l->write){
-			__sync_sub_and_fetch(&l->read,1);
-		}else{
-			break;
-		}
-	}
+	pthread_rwlock_rdlock(&l->lock);
 }
 
 static inline void rwlock_runlock(struct h_rwlock * l){
-	__sync_sub_and_fetch(&l->read,1);
+	pthread_rwlock_unlock(&l->lock);
 }
 
 static inline void rwlock_wlock(struct h_rwlock * l){
-	while(__sync_lock_test_and_set(&l->write,1)){}
-	while(l->read){
-		__sync_synchronize();
-	}
+	pthread_rwlock_wrlock(&l->lock);
 }
 
 static inline void rwlock_wunlock(struct h_rwlock * l){
-	__sync_lock_release(&l->write);
+	pthread_rwlock_unlock(&l->lock);
 }
+
+struct h_lock{
+	pthread_mutex_t lock;
+};
+
+static inline void hlock_init(struct h_lock * l){
+	pthread_mutex_init(&l->lock, NULL);
+}
+
+static inline void hlock_lock(struct h_lock * l){
+	pthread_mutex_lock(&l->lock);
+}
+
+static inline void hlock_unlock(struct h_lock * l){
+	pthread_mutex_unlock(&l->lock);
+}
+
+#ifdef __cpluscplus
+}
+#endif

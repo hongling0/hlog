@@ -5,8 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/fs.h>
-#include "hconf.h"
-#include "hlog.h"
+#include "hdev.h"
 /*
 "mainfilelog:{\n"
 "	type:sizerotatefile\n"
@@ -24,6 +23,7 @@ struct sizerotatefilelog_t{
 		size_t w_curr;
 		size_t w_total;
 	}stats;
+	struct h_lock lock;
 	size_t w_limit;
 };
 
@@ -46,6 +46,7 @@ static void* sizerotatefilelog_initilize(struct hconf_node *node){
 	ro->stats.w_curr=0;
 	ro->stats.w_total=0;
 	ro->w_limit=hconf_get_long(node,"size",0);
+	hlock_init(&ro->lock);
 	return ro;
 }
 
@@ -99,14 +100,17 @@ static FILE* sizerotatefilelog_rotate(struct sizerotatefilelog_t *ro,struct hlog
 }
 
 static int sizerotatefilelog_logv(void* ctx,struct hlogev_t *ev,const char* buf,size_t len){
+	FILE *file;
 	struct sizerotatefilelog_t *ro=(struct sizerotatefilelog_t*)ctx;
-	FILE *file=sizerotatefilelog_rotate(ro,ev);
+	hlock_lock(&ro->lock);
+	file=sizerotatefilelog_rotate(ro,ev);
 	if(file){
 		fwrite(buf,len,1,file);
 		ro->stats.w_curr+=len;
 		ro->stats.w_total+=len;
 		fflush(file);
 	}
+	hlock_unlock(&ro->lock);
 	return 0;
 }
 

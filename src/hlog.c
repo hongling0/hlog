@@ -7,10 +7,11 @@
 #include <string.h>
 #include <linux/fs.h>
 #include <stdarg.h>
-#include "hlog.h"
-#include "hlock.h"
+#include "hdev.h"
 #include "plugin/hlogbuild.i"
-#include "hconf.h"
+
+
+#define MAX_HLOG_KEY_LEN 64
 
 struct hlogkey_t{
 	int logid;
@@ -84,7 +85,7 @@ addkey:
 			strncpy(curkey->name,name,sizeof(curkey->name));
 			curkey->format=format;
 			curkey->node=NULL;
-			curkey->level=HLOG_MAXLVL;
+			curkey->level=HLOG_LEVEL_MAXLVL;
 			return i;
 		}
 	}
@@ -246,7 +247,7 @@ size_t hlog_interface(int logid,int level,int flag,const char* file,int line,con
 	size_t maxlen,len;
 	char *buf,*ptr,cache[2048];
 
-	if(level<0||level>HLOG_MAXLVL){
+	if(level<0||level>HLOG_LEVEL_MAXLVL){
 		fprintf(stderr, "hlog_interface log failure log level %d error id %d\n",level,logid);
 		return 0;
 	}
@@ -326,7 +327,7 @@ static void hlog_logger_remove(struct hlogvec_t *vec,const char* name){
 static struct hlogger_t * hlog_logger_initilize(struct hlog_opt *opt,const char *name,int level,struct hconf_node *node){
 	struct hlogger_t *logger;
 	void *ctx;
-	if(level<0||level>HLOG_MAXLVL){
+	if(level<0||level>HLOG_LEVEL_MAXLVL){
 		fprintf(stderr, "hlog_logger_initilize %s failure log level %d error\n",name,level);
 		return NULL;
 	}

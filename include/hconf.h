@@ -6,6 +6,10 @@
 #define HCONF_TYPE_STRING	0
 #define HCONF_TYPE_BLOCK	1
 
+#ifdef __cpluscplus
+extern "C"{
+#endif
+
 struct hconf_node{
 	uint8_t type;
 	const char * key;
@@ -37,5 +41,9 @@ struct hconf_node *hconf_get_node(struct hconf_node *block_list,const char* key)
 const char* hconf_get_string(struct hconf_node *node,const char* key,const char* def);
 long hconf_get_long(struct hconf_node *node,const char* key,long def);
 double hconf_get_double(struct hconf_node *node,const char* key,double def);
+
+#ifdef __cpluscplus
+}
+#endif
 
 #endif //_H_CONF_H_

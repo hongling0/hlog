@@ -1,5 +1,5 @@
 
-
+#include <pthread.h>
 #include "hlog.h"
 
 const char * conf_string=""
@@ -24,8 +24,18 @@ int hlogconf_loadconf(struct hconf *conf);
 */
 int LOG_INIT;
 int LOG_MAIN;
-int count;
+
+void* rthread(void* args){
+	int count=0;
+	for(count=0;count<1000;count++){
+		HINFO(LOG_INIT,"log_init_ok_%p\n",args);
+		HINFO(LOG_MAIN,"log_main_ok_%p\n",args);
+	}
+	return NULL;
+}
+
 int main(int argc,char* argv[]){
+	int i;
 	hlog_initilize();
 	LOG_INIT=hlog_keydeclare("INIT",NULL);
 	LOG_MAIN=hlog_keydeclare("MAIN",NULL);
@@ -40,9 +50,13 @@ int main(int argc,char* argv[]){
 		return -1;
 	}
 	hconf_destory(&conf);
-	for(count=0;count<1000000;count++){
-		hlog_interface(LOG_INIT,HLOG_INFO,0,__FILE__,__LINE__,"log_init_ok_%p\n",&conf);
-		hlog_interface(LOG_MAIN,HLOG_INFO,0,__FILE__,__LINE__,"log_main_ok_%p\n",&conf);
+	pthread_t tid[8];
+	for(i=0;i<8;i++){
+		pthread_create(&tid[i],NULL,rthread,&tid[i]);
+	}
+
+	for(i=0;i<8;i++){
+		pthread_join(tid[i],NULL);
 	}
 	hlog_release();
 	return 0;

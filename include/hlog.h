@@ -4,14 +4,16 @@
 #include <time.h>
 #include "hconf.h"
 
-#define MAX_HLOG_KEY_LEN 24
+#ifdef __cpluscplus
+extern "C"{
+#endif
 
-#define HLOG_FATA 0
-#define HLOG_ERROR 1
-#define HLOG_WARN 2
-#define HLOG_INFO 3
-#define HLOG_DEBUG 4
-#define HLOG_MAXLVL HLOG_DEBUG
+#define HLOG_LEVEL_FATAL 0
+#define HLOG_LEVEL_ERROR 1
+#define HLOG_LEVEL_WARN 2
+#define HLOG_LEVEL_INFO 3
+#define HLOG_LEVEL_DEBUG 4
+#define HLOG_LEVEL_MAXLVL HLOG_LEVEL_DEBUG
 
 // flag
 #define HLOG_FLAG_NOHEAD 	(1U<<1)
@@ -26,25 +28,25 @@ struct hlogev_t{
 	const char* file;
 };
 
-struct tm* hlog_getsystm(struct hlogev_t *ev);
-
 typedef int (*hlog_format)(char *buf,size_t maxlen,const char* key,struct hlogev_t *ev,const char* fmt,...);
-
-struct hconf_node;
-struct hconf;
-struct hlog_opt{
-	const char* type;
-	int (*checkconf)(struct hconf_node *conf);
-	void* (*initilize)(struct hconf_node *conf);
-	int (*log)(void* ctx,struct hlogev_t *ev,const char* buf,size_t len);
-	void (*release)(void* ctx);
-};
 
 int hlog_initilize();
 void hlog_release();
 
+int hlogconf_loadconf(struct hconf *conf);
 int hlog_keydeclare(const char* name,hlog_format format);
 size_t hlog_interface(int logid,int level,int flag,const char* file,int line,const char* fmt,...);
-int hlogconf_loadconf(struct hconf *conf);
+
+#ifdef __cpluscplus
+}
+#endif
+
+
+#define HLOG(logid,level,flag,__FILE__,__LINE__,...) hlog_interface(logid,level,flag,__FILE__,__LINE__,__VA_ARGS__)
+#define HDEBUG(logid,...) HLOG(logid,HLOG_LEVEL_DEBUG,0,__FILE__,__LINE__,__VA_ARGS__)
+#define HINFO(logid,...) HLOG(logid,HLOG_LEVEL_INFO,0,__FILE__,__LINE__,__VA_ARGS__)
+#define HWARN(logid,...) HLOG(logid,HLOG_LEVEL_WARN,0,__FILE__,__LINE__,__VA_ARGS__)
+#define HERROR(logid,...) HLOG(logid,HLOG_LEVEL_ERROR,0,__FILE__,__LINE__,__VA_ARGS__)
+#define HFATAL(logid,...) HLOG(logid,HLOG_LEVEL_FATAL,0,__FILE__,__LINE__,__VA_ARGS__)
 
 #endif

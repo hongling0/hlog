@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/fs.h>
-#include "hconf.h"
-#include "hlog.h"
+#include "hdev.h"
+
 /*
 "mainfilelog:{\n"
 "	type:timerotatefile\n"
@@ -22,6 +22,7 @@ struct timerotatefilelog_t{
 	char realpath[PATH_MAX];
 	time_t realpath_lasttime;
 	FILE *file;
+	struct h_lock lock;
 };
 
 static int timerotatefilelog_checkconf(struct hconf_node *node){
@@ -37,6 +38,7 @@ static void* timerotatefilelog_initilize(struct hconf_node *node){
 	strncpy(ro->path,file,PATH_MAX);
 	ro->file=NULL;
 	ro->realpath_lasttime=0;
+	hlock_init(&ro->lock);
 	return ro;
 }
 
@@ -75,12 +77,15 @@ retfile:
 }
 
 static int timerotatefilelog_logv(void* ctx,struct hlogev_t *ev,const char* buf,size_t len){
+	FILE *file;
 	struct timerotatefilelog_t *ro=(struct timerotatefilelog_t*)ctx;
-	FILE *file=timerotatefilelog_rotate(ro,ev);
+	hlock_lock(&ro->lock);
+	file=timerotatefilelog_rotate(ro,ev);
 	if(file){
 		fwrite(buf,len,1,file);
 		fflush(file);
 	}
+	hlock_unlock(&ro->lock);
 	return 0;
 }
 
