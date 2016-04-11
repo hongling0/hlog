@@ -103,10 +103,7 @@ loop:
 					return NULL;
 				}else{
 					const char *value_stop=trim_right(value_start,buffer);
-					char *ret=(char *)hm_pool_malloc(ctx->po,value_stop-value_start+1);
-					strncpy(ret,value_start,value_stop-value_start);
-					ret[value_stop-value_start]='\0';
-					return ret;
+					return hm_pool_strlendup(ctx->po,value_start,value_stop-value_start);
 				}
 			}else{
 				goto_error(ctx,"parse key error\n");
@@ -155,10 +152,7 @@ loop:
 		case '\n':{
 				const char *value_stop=trim_right(value_start,buffer);
 				value_start=trim_left(value_start,buffer);
-				char *ret=(char *)hm_pool_malloc(ctx->po,value_stop-value_start+1);
-				strncpy(ret,value_start,value_stop-value_start);
-				ret[value_stop-value_start]='\0';
-				return ret;
+				return hm_pool_strlendup(ctx->po,value_start,value_stop-value_start);
 			}
 			break;
 	}

@@ -88,9 +88,8 @@ static FILE* sizerotatefilelog_rotate(struct sizerotatefilelog_t *ro,struct hlog
 					tm->tm_min,tm->tm_sec);
 				if(rename(ro->path,path)==-1){
 					fprintf(stderr,"sizerotatefilelog rename(%s,%s) failure %s\n",ro->path,path,strerror(errno));
-				}else{
-					sizerotatefilelog_open(ro);
 				}
+				sizerotatefilelog_open(ro);
 			}
 		}else{
 			sizerotatefilelog_open(ro);

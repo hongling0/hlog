@@ -7,6 +7,15 @@
 extern "C"{
 #endif
 
+struct hlogev_t{
+	unsigned char level;
+	int logid;
+	int flag;
+	int line;
+	time_t time;
+	const char* file;
+};
+
 struct hlog_opt{
 	const char* type;
 	int (*checkconf)(struct hconf_node *conf);
