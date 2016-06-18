@@ -33,7 +33,8 @@ static int sizerotatefilelog_checkconf(struct hconf_node *node){
 		return -1;
 	}
 	if(hconf_get_string(node,"file",NULL)==NULL){
-		fprintf(stderr, "undefined rotate file name\n");
+		fprintf(stderr, "undefined rotate file name\n
+		return -1;
 	}
 	return 0;
 }
